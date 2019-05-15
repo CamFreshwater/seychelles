@@ -1,0 +1,12 @@
+m2 <- map2stan(
+	alist(
+	    revenue_per_fisher_perday ~ dnorm( mu , sigma ) ,
+	    mu <- a + ar[SZ] + ar2[year] +
+	    			   bD*simpson.diversity +
+	    			   bE*cpue ,
+	    a ~ dnorm(0, 5),
+	    c(ar)[SZ] ~  dnorm(0,sigmar1),
+	    c(ar2)[year] ~  dnorm(0,sigmar2),
+  	    c(bD, bE) ~ dnorm(0, 5),
+	    c(sigma, sigmar1, sigmar2) ~ dcauchy( 0 , 2)
+), data=focal, iter=3000, chains=3)
