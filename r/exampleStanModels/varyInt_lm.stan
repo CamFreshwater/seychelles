@@ -14,8 +14,5 @@ model {
   for (i in 1:n_cats) {
     alpha[i] ~ normal(alpha_mu, alpha_tau);
   }
-
-  for (i in 1:n_samples) {
-    y[i] ~ normal(alpha[cats[i]], sigma);
-  }
+  y ~ normal(alpha[cats], sigma);
 }
