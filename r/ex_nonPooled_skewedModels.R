@@ -17,11 +17,11 @@ library(here)
 rstan_options(auto_write = TRUE)
 
 # Specify models
-sm_lm <- stan_model(here("scripts/lm.stan"))
-sm_lmt <- stan_model(here("scripts/lm-t.stan"))
-sm_lmtskew <- stan_model(here("scripts/lm-t-skew.stan"))
+sm_lm <- stan_model(here("r/exampleStanModels/lm.stan"))
+sm_lmt <- stan_model(here("r/exampleStanModels/lm-t.stan"))
+sm_lmtskew <- stan_model(here("r/exampleStanModels/lm-t-skew.stan"))
 
-recDatTrim1 <- readRDS(here("data", "generated", "recDatTrim1.rds"))
+dat <- readRDS(here("r", "exampleStanModels", "recDatTrim1.rds"))
 
 # Function to fit model across stocks
 fit_sr_stan <- function(dat,
@@ -44,7 +44,8 @@ fit_sr_stan <- function(dat,
   )
   
   sampling(model,
-           data = list(X_ij = X_ij, y_i = dat$logProd, N = nrow(X_ij), J = ncol(X_ij)),
+           data = list(X_ij = X_ij, y_i = dat$logProd, N = nrow(X_ij), 
+                       J = ncol(X_ij)),
            iter = iter, chains = chains, cores = cores,
            control = list(adapt_delta = 0.99, max_treedepth = 20))
 }

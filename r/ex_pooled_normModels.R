@@ -22,42 +22,30 @@ df1 <- left_join(df, alpha, by = "cat") %>%
          y2 = alpha + rnorm(n, 0, sigma)) %>%
   tbl_df()
 
-dat <- list(n_cats = n_cats,
-             n_samples = n,
-             cats = df$cat,
-             y = df1$y)
+X_ij <- model.matrix(~x, data = df1)
 
-# library(lme4)
-# lmer(y ~ (1 | cat) + x, df1) %>% coef()
+dat <- list(n_cats = n_cats,
+            n_samples = n,
+            cats = df1$cat,
+            X_ij = X_ij,
+            y_i = df1$y)
+
+library(lme4)
+lmer(y ~ (1 | cat) + x, df1) %>% coef()
 # lmer(y2 ~ (1 | cat), df1) %>% coef()
 
 # model
-mod <- stan_model(here::here("r/exampleStanModels/varyInt_lm.stan"))
+mod <- stan_model(here::here("r/exampleStanModels/varyInt_lm_Full.stan"))
 
 fitModel <- sampling(mod,
          data = dat,
-         iter = 100, chains = 1, cores = 1,
+         iter = 4000, chains = 4, cores = 1,
          control = list(adapt_delta = 0.95, max_treedepth = 20))
 
-mod <- '
-data {
-  int<lower=1> n_cats;
-  int<lower=0> n_samples;
-  int<lower=1> cats[n_samples];
-  real y[n_samples];
-}
-parameters {
-  real<lower=9, upper=11> alpha_mu;
-  real<lower=1, upper=3> alpha_tau;
-  real alpha[n_cats];
-  real<lower=0, upper=1.0> sigma;
-}
-model {
-  for (i in 1:n_cats) {
-    alpha[i] ~ normal(alpha_mu, alpha_tau);
-  }
-
-  y ~ normal(alpha[cats], sigma);
-}
-'
-model1 <- stan(model_code = mod, data = dat, iter = 100, cores = 1, chains = 1)
+post_n <- plyr::ldply(out, function(x) {
+  e <- extract(fitModel)
+  sm_summ <- summary(fitModel)$summary
+  max_rhat <- max(sm_summ[, "Rhat"])
+  min_neff <- min(sm_summ[, "n_eff"])
+  data.frame(alpha = e$b_j[, 1], beta = e$b_j[, 2], max_rhat, min_neff)
+})
