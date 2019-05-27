@@ -24,8 +24,8 @@ model {
    beta[j] ~ normal(gamma,tau); //fill the matrix of group-level regression coefficients 
   }
   for(n in 1:N){
-    mu[n] = X[n] * beta[id[n]]; //compute the linear predictor using group-level reg coef 
+    mu[n] = X_ij[n] * beta[id[n]]; //compute the linear predictor using group-level reg coef 
   }
 
-  y ~ normal(mu,sigma);
+  y_i ~ normal(mu,sigma);
 }
