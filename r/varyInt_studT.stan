@@ -1,28 +1,29 @@
 data {
-  int<lower=1> F; // number of fishers
+  int<lower=1> K; // number of fishers
   int<lower=1> J; // number of years
   int<lower=1> N; // rows of data
-  int<lower=1, upper=F> fisher_id[N]; // vector of fisher indices
+  int<lower=1, upper=K> fisher_id[N]; // vector of fisher indices
   int<lower=1, upper=J> yr_id[N]; // vector of yr indices
   vector[N] x1; //exp var 1
   vector[N] x2; //exp var 2
   vector[N] y; // vector to hold observations
 }
 parameters {
-  vector[F] a_fisher_z; //group level deviate
+  vector[K] a_fisher_z; //group level deviate
   vector[J] a_yr_z; //group level deviate
   real b1;
   real b2;
   real mu_a; //global intercept 
   real<lower=0> sigma; //SD of ind. obs
-  real<lower=0> sigma_a_group; //SD of group intercept
+  real<lower=0> sigma_a_fisher; //SD of group intercept
+  real<lower=0> sigma_a_yr; //SD of group intercept
   real<lower=2> nu;
 }
 transformed parameters {
-  vector[F] a_fisher; //group-level deviates
-  vector[J] a_year; //group-level deviates
+  vector[K] a_fisher; //group-level deviates
+  vector[J] a_yr; //group-level deviates
   a_fisher = sigma_a_fisher * a_fisher_z;
-  a_year = sigma_a_yr * a_yr_z;
+  a_yr = sigma_a_yr * a_yr_z;
 }
 model {
   vector[N] mu; //linear predictor
