@@ -104,7 +104,7 @@ ml2 %>%
 apply(mlOut$id, 2, mean)
 
 ## Revisit coefficient specific estimates
-mcmc_hier <- extract(m_hier)
+mcmc_hier <- extract(m_hier2)
 str(mcmc_hier)
 
 #plot average response to explanatory variables
