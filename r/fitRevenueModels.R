@@ -98,6 +98,8 @@ postOut <- rbind(normEst2, studTEst2) %>%
 ## parameter estimates seem similar, but the fact that nu is small (with high
 # confidence), suggests that there is strong evidence for heavy tails; similar 
 # patterns with both response variables as well
+png(here("figs", "parEstimates.png"), height = 6, 
+    width = 6, units = "in", res = 300)
 ggplot(postOut %>% filter(response == "revByDay"), 
        aes(as.factor(par), est)) +
   geom_violin() + 
@@ -108,7 +110,7 @@ ggplot(postOut %>% filter(response == "revByDayKg"),
   geom_violin() + 
   facet_wrap(~model) + 
   labs(title = "revByDayKg")
-
+dev.off()
 
 ## STILL DEBUGGING ##
 #given similar par estimates focus on revByDay, studentT models for now
