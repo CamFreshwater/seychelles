@@ -45,3 +45,12 @@ model {
   //likelihood
   y ~ student_t(nu, mu, sigma);
 }
+generated quantities {
+  real y_rep[N];
+  vector[N] mu; //linear predictor as above (has to be defined in this code chunk)
+
+  for (i in 1:N) {
+    mu[i] = mu_a + a_fisher[fisher_id[i]] + a_yr[yr_id[i]] + b1*x1[i];
+    y_rep[i] = student_t_rng(nu, mu[i], sigma);
+  }
+}

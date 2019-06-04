@@ -20,8 +20,8 @@ focal <- read.csv(here::here('data', 'scaled_revenue_dataset.csv')) %>%
          revKgZ = as.numeric(scale(revKg)))
   
 # Models
-normMod <- stan_model(here::here("r", "varyInt_normal_oneBeta.stan"))
-studTMod <- stan_model(here::here("r", "varyInt_studT_oneBeta.stan"))
+normMod <- stan_model(here::here("r", "varyInt_normal_oneBeta_rand.stan"))
+studTMod <- stan_model(here::here("r", "varyInt_studT_oneBeta_rand.stan"))
 
 # Prep input data 
 N <- nrow(focal) #sample size
@@ -112,7 +112,14 @@ ggplot(postOut %>% filter(response == "revByDayKg"),
   labs(title = "revByDayKg")
 dev.off()
 
-## STILL DEBUGGING ##
+
+## look at posterior predictive checks
+y_data <- focal[, "revZ"]
+y_rep <- as.matrix(m_hierT, pars = "y_rep")
+dim(y_rep)
+
+bayesplot::ppc_dens_overlay(y_data, y_rep[1:200, ]) + xlim(-2, 2)
+
 #given similar par estimates focus on revByDay, studentT models for now
 mcmcOut <- extract(modOutList[["revByDayStudT"]])
 str(mcmcOut)
@@ -120,14 +127,20 @@ range(focal$divZ)
 preds <- cbind(mcmcOut$mu_a, mcmcOut$b1)
 
 X_new <- model.matrix(~x, data = data.frame(x = seq(-2, 2, by = 0.2)))
-pred_X <- apply(preds, 1, function(estBeta) X_new * estBeta) %>% 
+pred_X <- apply(preds, 1, function(estBeta) X_new %*% estBeta) %>% 
   apply(., 1, quantile, probs = c(0.025, 0.5, 0.975))
 
-plot(focal[, "revZ"] ~ focal[, "divZ"], pch=16, xlab="Diversity", 
+plot(focal[, "revZ"] ~ focal[, "divZ"], pch=1, xlab="Diversity", 
      ylab="Revenue")
 lines(seq(-2,2, by=0.2), pred_X[1,], lty=2, col="red")
 lines(seq(-2,2, by=0.2), pred_X[2,], lty=1, lwd=3, col="blue")
 lines(seq(-2,2, by=0.2), pred_X[3,], lty=2, col="red")
+
+
+plot(log(focal[, "revZ"]) ~ focal[, "divZ"], pch=1, xlab="Diversity", 
+     ylab="Revenue")
+
+
 
 # coefficient plot
 #now we could look at the variation in the regression coefficients between the 

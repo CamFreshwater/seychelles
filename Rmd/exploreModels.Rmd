@@ -1,0 +1,86 @@
+---
+title: "Revenue Model Fitting"
+author: "Cam Freshwater"
+date: "6/4/2019"
+output: html_document
+---
+
+Document exploring different model structures for estimating revenue as a function of ecological diversity. Issues with posterior predictive checks flagged in fitRevenueModels.R.
+
+```{r loadData, echo=TRUE}
+library(dplyr) 
+library(ggplot2) 
+library(rstan)
+
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = TRUE)
+
+focal <- read.csv(here::here('data', 'scaled_revenue_dataset.csv')) %>% 
+  arrange(SZ, year) %>% 
+  mutate(yrID = as.numeric(as.factor(year)),
+         szID = as.numeric(as.factor(SZ))) %>% 
+  select(yrID, szID, div = simpson.diversity, cpue, 
+         rev = revenue_per_fisher_perday,
+         revKg  = revenue_per_fisher_perday_perkg) %>% 
+  mutate(divZ = as.numeric(scale(div)),
+         revZ = as.numeric(scale(rev)),
+         revKgZ = as.numeric(scale(revKg)))
+
+# Prep input data 
+N <- nrow(focal) #sample size
+nYr <- length(unique(focal$yrID)) #number of yrs 
+nSz <- length(unique(focal$szID)) #number of sz groups
+yrID <- focal$yrID
+szID <- focal$szID
+```
+
+Begin by fitting student-t distribution as before - only addition is a `generated quantities` argument that stores predicted y-values for each iteration. Eventually we'll check to make sure it's justified relative to normal but generally they give similar results and risk of overparameterization is small. 
+
+```{r fitModel, include=FALSE}
+studTMod <- stan_model(here::here("r", "varyInt_studT_oneBeta_rand.stan"))
+
+m_hierT <- sampling(studTMod, data=list(N=N, J=nYr, K=nSz, fisher_id = szID,
+                                      yr_id = yrID, x1=focal[, "divZ"],
+                                      y = focal[, "revZ"]),
+                   iter = 4000, chains = 4, cores = 4,
+                   control = list(adapt_delta = 0.9, max_treedepth = 20))
+```
+
+Convergence diagnostics are reasonable (high effective sample size, low Rhat), next step is to evaluate posterior predictions vs. observed data.
+
+```{r ppOne}
+y_data <- focal[, "revZ"]
+y_rep <- as.matrix(m_hierT, pars = "y_rep")
+
+bayesplot::ppc_dens_overlay(y_data, y_rep[1:200, ]) + 
+  xlim(-2, 2)
+```
+
+As you can see the model isn't really capable of generating the skewed distribution present in the observed data. 
+
+My first thought was to log the response to better bound some of those extreme tails, but that's obviously not possible with negative data. Instead I'm trying to fit a more complex skewed model to try to account for the negative mean.
+
+```{r fitModel, include=FALSE}
+skewTMod <- stan_model(here::here("r", "varyInt_skewT_oneBeta.stan"))
+
+m_hierSkewT <- sampling(skewTMod, data=list(N=N, J=nYr, K=nSz, fisher_id = szID,
+                                      yr_id = yrID, x1=focal[, "divZ"],
+                                      y = focal[, "revZ"]),
+                   iter = 4000, chains = 4, cores = 4,
+                   control = list(adapt_delta = 0.9, max_treedepth = 20))
+shinystan::launch_shinystan(m_hierSkewT)
+```
+
+Unfortunately posterior predictive checks aren't easy to do with this model because it is based on custom code from Sean. We'll start by looking at the estimated coefficients.
+
+```{r plotCoefs}
+e <- extract(m_hierSkewT)
+d <- data.frame(mu_alpha = e$mu_a, betaDiv = e$b1, sigma = e$sigma,
+                    harvSig = e$sigma_a_fisher, yrSig = e$sigma_a_yr, 
+                skew =  e$log_skew) %>% 
+    tidyr::gather(key = "par", value = "est")
+
+ggplot(d, aes(as.factor(par), est)) +
+  geom_violin() + 
+  labs(title = "revByDay")
+```

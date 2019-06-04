@@ -1,3 +1,17 @@
+functions {
+  real skew_student_t_log(real y, real nu, real mu, real sigma, real skew) {
+  real lp;
+  if (skew <= 0)
+    reject("Skew has to be positive. Found skew=", skew);
+  if (sigma <= 0)
+    reject("Scale has to be positive.  Found sigma=", sigma);
+  lp = log(skew) - log1p(square(skew));
+  if (y < mu)
+    return lp + student_t_lpdf(y * skew | nu, mu * skew, sigma);
+  else
+    return lp + student_t_lpdf(y / skew | nu, mu / skew, sigma);
+  }
+}
 data {
   int<lower=1> K; // number of fishers
   int<lower=1> J; // number of years
@@ -16,6 +30,7 @@ parameters {
   real<lower=0> sigma_a_fisher; //SD of group intercept
   real<lower=0> sigma_a_yr; //SD of group intercept
   real<lower=2> nu;
+  real log_skew;
 }
 transformed parameters {
   vector[K] a_fisher; //group-level deviates
@@ -32,6 +47,7 @@ model {
   
   //priors
   nu ~ gamma(2, 0.1);
+  log_skew ~ cauchy(0, 2.5);
   mu_a ~ normal(0, 5);
   b1 ~ normal(0, 5);
   sigma_a_yr ~ student_t(5, 0, 3);
@@ -40,8 +56,8 @@ model {
 
   for (i in 1:N) {
     mu[i] = mu_a + a_fisher[fisher_id[i]] + a_yr[yr_id[i]] + b1*x1[i];
+    
+    //likelihood
+    y[i] ~ skew_student_t(nu, mu[i], sigma, exp(log_skew));
   }
-
-  //likelihood
-  y ~ student_t(nu, mu, sigma);
 }
