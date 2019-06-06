@@ -30,9 +30,9 @@ nSz <- length(unique(focal$szID)) #number of sz groups
 yrID <- focal$yrID
 szID <- focal$szID
 
-# revenue by day models
+# revenue by day models (not used for now)
 m_hier <- sampling(normMod, data=list(N=N, J=nYr, K=nSz, fisher_id = szID,
-                                   yr_id = yrID, x1=focal[, "divZ"], 
+                                   yr_id = yrID, x1=focal[, "divZ"],
                                    y = focal[, "revZ"]),
                    iter = 4000, chains = 4, cores = 4,
                    control = list(adapt_delta = 0.9, max_treedepth = 20))
@@ -59,6 +59,10 @@ m_hierT2 <- sampling(studTMod, data=list(N=N, J=nYr, K=nSz, fisher_id = szID,
                     iter = 4000, chains = 4, cores = 4,
                     control = list(adapt_delta = 0.9, max_treedepth = 20))
 shinystan::launch_shinystan(m_hierT2)
+
+## Focal model
+saveRDS(extract(m_hierT_mass), here::here("data", "modFits",
+                                          "revByKg_studT.rds"))
 
 modOutList <- list(m_hier, m_hierT, m_hier2, m_hierT2)
 names(modOutList) <- c("revByDayNormal", "revByDayStudT", "revByDayKGNormal", 
@@ -114,33 +118,37 @@ dev.off()
 
 
 ## look at posterior predictive checks
-y_data <- focal[, "revZ"]
-y_rep <- as.matrix(m_hierT, pars = "y_rep")
+y_data <- focal[, "revKgZ"]
+y_rep <- as.matrix(m_hierT2, pars = "y_rep")
 dim(y_rep)
 
 bayesplot::ppc_dens_overlay(y_data, y_rep[1:200, ]) + xlim(-2, 2)
 
-#given similar par estimates focus on revByDay, studentT models for now
-mcmcOut <- extract(modOutList[["revByDayStudT"]])
+#Focus on revByDayKg, studentT models
+# mcmcOut <- extract(modOutList[["revByDayKGStudT"]])
+#import coeffient estimates
+mcmcOut <- readRDS(here::here("data", "modFits", "revByKg_studT.rds"))
 str(mcmcOut)
 range(focal$divZ)
 preds <- cbind(mcmcOut$mu_a, mcmcOut$b1)
 
+# Plot predictions for diversity (super ugly)
+# I don't think this is correct yet, presumably because the model.matrix doesn't
+# include all the coefficients. Hopefully you can adapt it, if not send me what
+# you have from rethinking and I can try to adapt it, otherwise I'll work on it
+# this weekend
 X_new <- model.matrix(~x, data = data.frame(x = seq(-2, 2, by = 0.2)))
 pred_X <- apply(preds, 1, function(estBeta) X_new %*% estBeta) %>% 
   apply(., 1, quantile, probs = c(0.025, 0.5, 0.975))
 
-plot(focal[, "revZ"] ~ focal[, "divZ"], pch=1, xlab="Diversity", 
-     ylab="Revenue")
+plot(focal[, "revKgZ"] ~ focal[, "divZ"], pch=1, xlab="Diversity", 
+     ylab="Revenue", ylim = c(-5, 5))
 lines(seq(-2,2, by=0.2), pred_X[1,], lty=2, col="red")
 lines(seq(-2,2, by=0.2), pred_X[2,], lty=1, lwd=3, col="blue")
 lines(seq(-2,2, by=0.2), pred_X[3,], lty=2, col="red")
 
 
-plot(log(focal[, "revZ"]) ~ focal[, "divZ"], pch=1, xlab="Diversity", 
-     ylab="Revenue")
-
-
+### BOTTOM CODE IS NOT REALLY RELEVANT YET
 
 # coefficient plot
 #now we could look at the variation in the regression coefficients between the 

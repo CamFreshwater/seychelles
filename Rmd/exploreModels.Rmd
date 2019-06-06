@@ -55,6 +55,10 @@ m_hierT_mass <- sampling(studTMod, data=list(N=N, J=nYr, K=nSz, fisher_id = szID
                                       y = focal[, "revKgZ"]),
                    iter = 3500, chains = 4, cores = 4,
                    control = list(adapt_delta = 0.9, max_treedepth = 20))
+
+saveRDS(extract(m_hierT_mass), here::here("data", "modFits",
+                                          "revByKg_studT.rds"))
+
 ```
 
 Convergence diagnostics are reasonable (high effective sample size, low Rhat), next step is to evaluate posterior predictions vs. observed data.
@@ -77,7 +81,7 @@ As you can see the model isn't really capable of generating the skewed distribut
 
 My first thought was to log the response to better bound some of those extreme tails, but that's obviously not possible with negative data. Instead I'm trying to fit a more complex skewed model to try to account for the negative mean.
 
-```{r fitModel, include=FALSE}
+```{r fitModelSkew, include=FALSE}
 skewTMod <- stan_model(here::here("r", "varyInt_skewT_oneBeta.stan"))
 
 m_hierSkewT <- sampling(skewTMod, data=list(N=N, J=nYr, K=nSz, fisher_id = szID,
