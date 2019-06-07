@@ -15,6 +15,7 @@ parameters {
   real<lower=0> sigma; //SD of ind. obs
   real<lower=0> sigma_a_fisher; //SD of group intercept
   real<lower=0> sigma_a_yr; //SD of group intercept
+  real<lower=2> nu;
 }
 transformed parameters {
   vector[K] a_fisher; //group-level deviates
@@ -30,18 +31,19 @@ model {
   a_yr_z ~ normal(0,1);
   
   //priors
+  nu ~ gamma(2, 0.1);
   mu_a ~ normal(0, 5);
   b1 ~ normal(0, 5);
-  sigma_a_yr ~ cauchy(0, 2.5);
-  sigma_a_fisher ~ cauchy(0, 2.5);
-  sigma ~ gamma(2, 0.1);
+  sigma_a_yr ~ student_t(5, 0, 3);
+  sigma_a_fisher ~ student_t(5, 0, 3);
+  sigma ~ student_t(5, 0, 3);
 
   for (i in 1:N) {
     mu[i] = mu_a + a_fisher[fisher_id[i]] + a_yr[yr_id[i]] + b1*x1[i];
   }
 
   //likelihood
-  y ~ normal(mu, sigma);
+  y ~ student_t(nu, mu, sigma);
 }
 generated quantities {
   real y_rep[N];
@@ -49,6 +51,6 @@ generated quantities {
 
   for (i in 1:N) {
     mu[i] = mu_a + a_fisher[fisher_id[i]] + a_yr[yr_id[i]] + b1*x1[i];
-    y_rep[i] = normal_rng(mu, sigma);
+    y_rep[i] = student_t_rng(nu, mu[i], sigma);
   }
 }

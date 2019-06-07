@@ -195,3 +195,5 @@ m_hierT <- sampling(mod5, data=list(N=N, J=J, group_id=id, x1=X[,"x1"],
 print(m_hier)
 print(m_hierT)
 
+
+

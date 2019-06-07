@@ -20,8 +20,10 @@ focal <- read.csv(here::here('data', 'scaled_revenue_dataset.csv')) %>%
          revKgZ = as.numeric(scale(revKg)))
   
 # Models
-normMod <- stan_model(here::here("r", "varyInt_normal_oneBeta_rand.stan"))
-studTMod <- stan_model(here::here("r", "varyInt_studT_oneBeta_rand.stan"))
+normMod <- stan_model(here::here("r", "stanModels",
+                                 "varyInt_normal_oneBeta_rand.stan"))
+studTMod <- stan_model(here::here("r", "stanModels",
+                                  "varyInt_studT_oneBeta_rand.stan"))
 
 # Prep input data 
 N <- nrow(focal) #sample size
