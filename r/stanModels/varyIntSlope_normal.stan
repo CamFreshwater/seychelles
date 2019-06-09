@@ -16,7 +16,6 @@ parameters {
   real<lower=0> sigma_a_fisher; //SD of group intercept
   vector<lower=0>[2] phi_yr; //SD of yr slope and intercept
   cholesky_factor_corr[2] L_rho_yr; //for covariance matrix
-  real<lower=2> nu;
 }
 transformed parameters {
   matrix[J,2] v_yr; //transformed covariance matrix
@@ -35,10 +34,9 @@ model {
 
   //group-level parameters and priors
   L_rho_yr ~ lkj_corr_cholesky(2);
-  phi_yr ~ student_t(5, 0, 3);
-  sigma_a_fisher ~ student_t(5, 0, 3);
-  sigma ~ student_t(5, 0, 3);
-  nu ~ gamma(2, 0.1);
+  phi_yr ~ cauchy(0,2);
+  sigma_a_fisher ~ cauchy(0, 2.5);
+  sigma ~ gamma(2, 0.1);
   b1 ~ normal(0, 5);
   mu_a ~ normal(0, 5);
   a_fisher ~ normal(0, sigma_a_fisher);
@@ -52,18 +50,5 @@ model {
   }
 
   //likelihood
-  y ~ student_t(nu, mu, sigma);
-}
-generated quantities {
-  real y_rep[N];
-  vector[N] B1;
-  vector[N] A;
-  vector[N] mu; //linear predictor as above (has to be defined in this code chunk)
-
-  for (i in 1:N) {
-    B1[i] = b1 + b1_yr[yr_id[i]];
-    A[i] = mu_a + a_fisher[fisher_id[i]] + a_yr[yr_id[i]];
-    mu[i] = A[i] + B1[i]*x1[i];    
-    y_rep[i] = student_t_rng(nu, mu[i], sigma);
-  }
+  y ~ normal(mu, sigma);
 }
