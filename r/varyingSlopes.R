@@ -1,6 +1,5 @@
 ### Practice fitting varying intercept, varying slope models w/ two groups
 
-library(brms)
 library(dplyr)
 library(ggplot2) 
 library(rstan)
@@ -24,9 +23,9 @@ focal <- read.csv(here::here('data', 'scaled_revenue_dataset.csv')) %>%
 
 ## Use rethinking to check what the stan structure should look like for 
 # slope/intercept covariance
-revMod <- map2stan(
+revDayMod1 <- map2stan(
   alist(
-    revZ ~ dnorm(mu, sigma),
+    revDay ~ dnorm(mu, sigma),
     #linear models
     mu <- A + BD*divZ,
     A <- a + a_sz[szID] + a_yr[yrID],
@@ -42,10 +41,31 @@ revMod <- map2stan(
     rho_yr ~ dlkjcorr(2)
   ), 
   data = focal,
-  iter=2000, warmup=1000, chains=1, cores=1
+  iter=3000, warmup=1000, chains=4, cores=4
+)
+revDayMod2 <- map2stan(
+  alist(
+    revDayZ ~ dnorm(mu, sigma),
+    #linear models
+    mu <- A + BD*divZ,
+    A <- a + a_sz[szID] + a_yr[yrID],
+    BD <- bd + bd_yr[yrID],
+    #adaptive priors
+    c(a_yr, bd_yr)[yrID] ~ dmvnormNC(phi_yr, rho_yr),
+    a_sz[szID] ~ dnorm(0, phi_sz),
+    #fixed priors
+    a ~ dnorm(0, 5),
+    bd ~ dnorm(0, 5),
+    sigma ~ dcauchy(0, 2),
+    c(phi_sz, phi_yr) ~ dcauchy(0, 2),
+    rho_yr ~ dlkjcorr(2)
+  ), 
+  data = focal,
+  iter=3000, warmup=1000, chains=4, cores=4
 )
 
-stancode(revMod)
+stancode(revDayMod1)
+precis(revDayMod1, depth = 2)
 
 
 ## Fit equivalent model with stan
@@ -85,30 +105,47 @@ studTMod <- stan_model(here::here("r", "stanModels",
 #   })
 # names(modOutList) <- c("rev", "revDay", "revDayKg")
 
-revMod <- sampling(studTMod, data=list(N=N, J=nYr, K=nSz, fisher_id = szID, 
-                             yr_id = yrID, x1=focal[, "divZ"], 
-                             y = focal[ ,"rev"]),
-                   iter = 3000, chains = 4, cores = 4,
-                   control = list(adapt_delta = 0.9, max_treedepth = 20))
-revDayMod <- sampling(studTMod, data=list(N=N, J=nYr, K=nSz, fisher_id = szID, 
-                                       yr_id = yrID, x1=focal[, "divZ"], 
+# revMod <- sampling(studTMod, data=list(N=N, J=nYr, K=nSz, fisher_id = szID, 
+#                              yr_id = yrID, x1=focal[, "divZ"], 
+#                              y = focal[ ,"rev"]),
+#                    iter = 3000, chains = 4, cores = 4,
+#                    control = list(adapt_delta = 0.9, max_treedepth = 20))
+revDayMod <- sampling(studTMod, data=list(N=N, J=nYr, K=nSz, fisher_id = szID,
+                                       yr_id = yrID, x1=focal[, "divZ"],
                                        y = focal[ ,"revDay"]),
                    iter = 3000, chains = 4, cores = 4,
                    control = list(adapt_delta = 0.9, max_treedepth = 20))
-revDayKgMod <- sampling(studTMod, data=list(N=N, J=nYr, K=nSz, fisher_id = szID, 
-                                          yr_id = yrID, x1=focal[, "divZ"], 
-                                          y = focal[ ,"revDayKg"]),
+revDayModRaw <- sampling(studTMod, data=list(N=N, J=nYr, K=nSz, fisher_id = szID, 
+                                          yr_id = yrID, x1=focal[, "div"], 
+                                          y = focal[ ,"revDay"]),
                       iter = 3000, chains = 4, cores = 4,
                       control = list(adapt_delta = 0.9, max_treedepth = 20))
+revDayModZ <- sampling(studTMod, data=list(N=N, J=nYr, K=nSz, fisher_id = szID, 
+                                          yr_id = yrID, x1=focal[, "divZ"], 
+                                          y = focal[ ,"revDayZ"]),
+                      iter = 3000, chains = 4, cores = 4,
+                      control = list(adapt_delta = 0.9, max_treedepth = 20))
+# revDayKgMod <- sampling(studTMod, data=list(N=N, J=nYr, K=nSz, fisher_id = szID, 
+#                                           yr_id = yrID, x1=focal[, "divZ"], 
+#                                           y = focal[ ,"revDayKg"]),
+#                       iter = 3000, chains = 4, cores = 4,
+#                       control = list(adapt_delta = 0.9, max_treedepth = 20))
 
-modOutList <- list(revMod, revDayMod, revDayKgMod)
-names(modOutList) <- c("rev", "revDay", "revDayKg")
-respSeq <- list("rev", "revDay", "revDayKg")
+# modOutList <- list(revMod, revDayMod, revDayKgMod)
+# names(modOutList) <- c("rev", "revDay", "revDayKg")
+# respSeq <- list("rev", "revDay", "revDayKg")
 
-shinystan::launch_shinystan(revMod)
+modOutList <- list(revDayMod, revDayModZ)
+names(modOutList) <- c("revDay", "revDayZ")
+respSeq <- list("revDay", "revDayZ")
+
+# shinystan::launch_shinystan(revMod)
 shinystan::launch_shinystan(revDayMod)
-shinystan::launch_shinystan(revDayKgMod)
+shinystan::launch_shinystan(revDayModZ)
+shinystan::launch_shinystan(revDayModRaw)
+# shinystan::launch_shinystan(revDayKgMod)
 #all look good
+
 
 # Look at posterior predictions
 ppFunc <- function(respName) {
