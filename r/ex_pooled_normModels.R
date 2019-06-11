@@ -62,7 +62,7 @@ J<-10 #number of plant species
 id<-rep(1:J,each=10) #index of plant species
 K<-3 #number of regression coefficients
 #population-level regression coefficient
-gamma<-c(2,-1,3)
+gamma<-c(5,-10,35)
 #standard deviation of the group-level coefficient
 tau<-c(0.3,2,1)
 #standard deviation of individual observations
@@ -72,24 +72,37 @@ beta<-mapply(function(g,t) rnorm(J,g,t),g=gamma,t=tau)
 #the model matrix
 X<-model.matrix(~x1 + x2,data = data.frame(x1 = runif(N,-2,2),
                                      x2 = runif(N,-2,2)))
+Xz <- apply(X[ , 2:3], 2, scale) %>% 
+  as.matrix() %>% 
+  cbind(X[ , 1], .)
+
 y<-vector(length = N)
 for(n in 1:N){
   #simulate response data
   y[n]<-rnorm(1, X[n,] %*% beta[id[n], ], sigma)
 }
+yz <- scale(y) %>% 
+  as.numeric()
 
-m_hier <- sampling(mod2, data=list(N=N, J=J, K=K, id=id, X_ij=X, y_i=y),
-                   iter = 4000, chains = 4, cores = 1,
-                   control = list(adapt_delta = 0.95, max_treedepth = 20))
+m1 <- sampling(mod2, data=list(N=N, J=J, K=K, id=id, X_ij=X, y_i=y),
+                   iter = 3000, chains = 4, cores = 4,
+                   control = list(adapt_delta = 0.90, max_treedepth = 20))
+shinystan::launch_shinystan(m1)
 
 ## results in divergent iterations - reparameterize
 mod3 <- stan_model(here::here("r/exampleStanModels/varyInt_lm_Full_repar.stan"))
 
-m_hier2 <- sampling(mod3, data=list(N=N, J=J, K=K, id=id, X_ij=X, y_i=y),
-                   iter = 4000, chains = 4, cores = 1,
-                   control = list(adapt_delta = 0.95, max_treedepth = 20))
+m1a <- sampling(mod3, data=list(N=N, J=J, K=K, id=id, X_ij=X, y_i=y),
+                   iter = 3000, chains = 4, cores = 1,
+                   control = list(adapt_delta = 0.9, max_treedepth = 20))
+shinystan::launch_shinystan(m1a)
 #estimates of hyper parameters
-print(m_hier2)
+print(m1a)
+
+m1aZ <- sampling(mod3, data=list(N=N, J=J, K=K, id=id, X_ij=Xz, y_i=yz),
+                 iter = 3000, chains = 4, cores = 1,
+                 control = list(adapt_delta = 0.9, max_treedepth = 20))
+shinystan::launch_shinystan(m1aZ)
 
 ## As above but with ML
 df <- cbind(id, X) %>% 
